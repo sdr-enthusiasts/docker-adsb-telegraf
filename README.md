@@ -14,9 +14,9 @@ services:
       - PROMETHEUS_ENABLE=true
       #- URL_1090=http://192.168.2.23:8080
       #- URL_1090=http://192.168.2.23/tar1090
-      - URL_1090=http://ultrafeeder # refrence container directly if in same stack
+      - URL_1090=http://ultrafeeder # reference container directly if in same stack
       #- HOST_978=192.168.2.33
-      - HOST_978=dump978 # referene container directly if in same stack
+      - HOST_978=dump978 # reference container directly if in same stack
       - LAT=${FEEDER_LAT}
       - LON=${FEEDER_LONG}
     ports:
@@ -29,8 +29,9 @@ services:
 
 | Variable            | Description                         |
 | ------------------- | ----------------------------------- |
-| `URL_1090` | URL of tar1090 or dump1090 webinterface to get get data.                                                                  |
+| `URL_1090` | URL of tar1090 or dump1090 webinterface to get data.                                                                      |
 | `HOST_978` | IP / Hostname of where to get the 978 data (port 30978 and 30979 are both required).                                      |
+| `URL_978`  | URL of skyaware978 webinterface to get 978 autogain data. (i.e. http://dump978/skyaware978)                               |
 | `INFLUXDB_SKIP_AIRCRAFT` | Set to any value to skip publishing aircraft data to InfluxDB to minimize bandwidth and database size.      |
 
 ### Output to InfluxDBv2
