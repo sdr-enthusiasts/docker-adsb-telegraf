@@ -48,6 +48,7 @@ if [[ -n "${URL_1090}" ]]; then
 
     sed -i -e "s#DATA_URL_1090#${URL_1090}/data#" /etc/telegraf/telegraf.d/readsb_receiver_json.conf
     sed -i -e "s#DATA_URL_1090#${URL_1090}/data#" /etc/telegraf/telegraf.d/readsb_stats_json.conf
+    sed -i -e "s#DATA_URL_1090#${URL_1090}/data#" /etc/telegraf/telegraf.d/readsb_stats_prom.conf
     sed -i -e "s#DATA_URL_1090#${URL_1090}/data#" /etc/telegraf/telegraf.d/readsb_aircraft_json.conf
 
     # If INFLUXDB_SKIP_AIRCRAFT is specified, don't push aircraft data to influx
@@ -55,9 +56,10 @@ if [[ -n "${URL_1090}" ]]; then
         rm -f -v /etc/telegraf/telegraf.d/readsb_aircraft_json.conf
     fi
 else
-    rm -f /etc/telegraf/telegraf.d/readsb_aircraft_json.conf
     rm -f /etc/telegraf/telegraf.d/readsb_receiver_json.conf
     rm -f /etc/telegraf/telegraf.d/readsb_stats_json.conf
+    rm -f /etc/telegraf/telegraf.d/readsb_stats_prom.conf
+    rm -f /etc/telegraf/telegraf.d/readsb_aircraft_json.conf
 fi
 
 
