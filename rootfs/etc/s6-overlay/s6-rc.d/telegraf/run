@@ -3,4 +3,4 @@
 
 exec s6wrap --quiet --timestamps --prepend=telegraf --args telegraf \
     --config-directory /etc/telegraf/telegraf.d \
-    | grep --line-buffered -v -e "Error in plugin" -e "error converting to float"
+     > >(grep --line-buffered -v -F -e "Error in plugin" -e "error converting to float")
