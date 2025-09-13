@@ -5,6 +5,9 @@ source /scripts/common
 
 if [[ -n "$HOST_978" && -z "$INFLUXDB_SKIP_AIRCRAFT" ]]; then
 
+  # less reconnect spam
+  sleep 4
+
   SOCAT_CMD=("socat")
 
   if [ "$VERBOSE_LOGGING" = "true" ]; then
