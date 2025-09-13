@@ -1,6 +1,8 @@
 #!/command/with-contenv bash
 #shellcheck shell=bash
 
+source /scripts/common
+
 if [[ -n "$HOST_978" && -z "$INFLUXDB_SKIP_AIRCRAFT" ]]; then
 
   SOCAT_CMD=("socat")
@@ -16,5 +18,5 @@ if [[ -n "$HOST_978" && -z "$INFLUXDB_SKIP_AIRCRAFT" ]]; then
   exec s6wrap --quiet --timestamps --prepend="$(basename "$0")" --args "${SOCAT_CMD[@]}"
 
 else
-  exec sleep infinity
+  stop_service
 fi
