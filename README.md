@@ -27,9 +27,11 @@ services:
 
 ### General options
 
-| `URL_1090` | URL of tar1090 or dump1090 webinterface to get get data.                                                                  | Unset   |
-| `HOST_978` | IP / Hostname of where to get the 978 data (port 30978 and 30979 are both required).                                      | Unset   |
-| `INFLUXDB_SKIP_AIRCRAFT` | Set to any value to skip publishing aircraft data to InfluxDB to minimize bandwidth and database size.      | Unset   |
+| Variable            | Description                         |
+| ------------------- | ----------------------------------- |
+| `URL_1090` | URL of tar1090 or dump1090 webinterface to get get data.                                                                  |
+| `HOST_978` | IP / Hostname of where to get the 978 data (port 30978 and 30979 are both required).                                      |
+| `INFLUXDB_SKIP_AIRCRAFT` | Set to any value to skip publishing aircraft data to InfluxDB to minimize bandwidth and database size.      |
 
 ### Output to InfluxDBv2
 
