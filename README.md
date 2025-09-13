@@ -25,6 +25,10 @@ services:
       - /run:exec,size=64M
 ```
 
+### General options
+
+| `INFLUXDB_SKIP_AIRCRAFT` | Set to any value to skip publishing aircraft data to InfluxDB to minimize bandwidth and database size.                                  | Unset   |
+
 ### Output to InfluxDBv2
 
 In order for Telegraf to output metrics to an [InfluxDBv2](https://docs.influxdata.com/influxdb/) time-series database, the following environment variables can be used:
