@@ -13,6 +13,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 COPY --from=telegraf /usr/bin/telegraf /usr/bin/telegraf
 
 RUN set -x && \
+    mkdir -p /etc/telegraf/telegraf.d && \
     # document telegraf version
     bash -ec "telegraf --version >> /VERSIONS" && \
     cat /VERSIONS
