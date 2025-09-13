@@ -1,0 +1,218 @@
+#!/command/with-contenv bash
+#shellcheck shell=bash
+
+source /scripts/common
+
+# remove all old config files to start fresh
+rm -f /etc/telegraf/telegraf.d/*
+
+TELEGRAF_OUTPUT_FILE="/etc/telegraf/telegraf.d/output.conf"
+
+# configure InfluxDB v2 if a URL is given
+if [[ -n "$INFLUXDBV2_URL" ]]; then
+    {
+        echo "[[outputs.influxdb_v2]]"
+        echo "  urls = [\"$INFLUXDBV2_URL\"]"
+        echo "  token = \"$INFLUXDBV2_TOKEN\""
+        echo "  organization = \"$INFLUXDBV2_ORG\""
+        echo "  bucket = \"$INFLUXDBV2_BUCKET\""
+        echo ""
+    } >> "$TELEGRAF_OUTPUT_FILE"
+fi
+
+# configure InfluxDB if a URL is given
+if [[ -n "$INFLUXDB_URL" ]]; then
+    {
+        echo "[[outputs.influxdb]]"
+        echo "  urls = [\"$INFLUXDB_URL\"]"
+        echo "  database = \"$INFLUXDB_DATABASE\""
+        echo "  username = \"$INFLUXDB_USERNAME\""
+        echo "  password = \"$INFLUXDB_PASSWORD\""
+        echo ""
+    } >> "$TELEGRAF_OUTPUT_FILE"
+fi
+
+# configure Prometheus if required
+if chk_enabled "$PROMETHEUS_ENABLE"; then
+    {
+        echo "[[outputs.prometheus_client]]"
+        echo "  listen = \":9273\""
+        echo ""
+    }  >> "$TELEGRAF_OUTPUT_FILE"
+fi
+
+# INPUTS for 1090
+
+if [[ -n "${URL_1090}" ]]; then
+    cp -v /etc/telegraf/conf1090/* /etc/telegraf/telegraf.d/
+
+    sed -i -e "s#DATA_URL_1090#${URL_1090}/data#" /etc/telegraf/telegraf.d/readsb_receiver_json.conf
+    sed -i -e "s#DATA_URL_1090#${URL_1090}/data#" /etc/telegraf/telegraf.d/readsb_stats_json.conf
+    sed -i -e "s#DATA_URL_1090#${URL_1090}/data#" /etc/telegraf/telegraf.d/readsb_aircraft_json.conf
+
+    # If INFLUXDB_SKIP_AIRCRAFT is specified, don't push aircraft data to influx
+    if [[ -n "$INFLUXDB_SKIP_AIRCRAFT" ]]; then
+        rm -f -v /etc/telegraf/telegraf.d/readsb_aircraft_json.conf
+    fi
+else
+    rm -f /etc/telegraf/telegraf.d/readsb_aircraft_json.conf
+    rm -f /etc/telegraf/telegraf.d/readsb_receiver_json.conf
+    rm -f /etc/telegraf/telegraf.d/readsb_stats_json.conf
+fi
+
+
+# INPUTS for 978
+
+if [[ -z "${HOST_978}" ]]; then
+  exit 0
+fi
+
+INPUT_JSON_CONFIG_FILE="/etc/telegraf/telegraf.d/inputs_978_socket_listener_dump978_json.conf"
+INPUT_POLAR_RANGE_DATA="/etc/telegraf/telegraf.d/inputs_978_polar_range_978.conf"
+INPUT_STATS_DATA="/etc/telegraf/telegraf.d/inputs_978_stats.conf"
+INPUT_AUTOGAIN_FILE="/etc/telegraf/telegraf.d/inputs_978_file_autogain.conf"
+
+##### TELEGRAF CONFIG - INPUT FROM stats #####
+{
+  echo "[[inputs.file]]"
+  echo "  files = [\"/run/stats978/stats.json\"]"
+  echo "  interval = \"60s\""
+  echo "  name_override = \"stats\""
+  echo "  data_format = \"json\""
+  echo "  json_query = \"last_1min\""
+} > "$INPUT_STATS_DATA"
+
+if [[ -n "$LAT" ]] || [[ -n "$LON" ]]; then
+
+  ##### TELEGRAF CONFIG - INPUT FROM stats polar_range #####
+  {
+    echo "[[inputs.file]]"
+    echo "  files = [\"/run/stats978/polar_range.influx\"]"
+    echo "  interval = \"60s\""
+    echo "  name_override = \"polar_range\""
+    echo "  data_format = \"influx\""
+  } > "$INPUT_POLAR_RANGE_DATA"
+
+fi
+
+# TODO: fix 978 gain ... somehow
+# If gain is specified...
+if [[ -n "$DUMP978_SDR_GAIN" ]]; then
+  # If the user wants to use the autogain system...
+  if [[ "$DUMP978_SDR_GAIN" == "autogain" ]]; then
+    ##### TELEGRAF CONFIG - INPUT FROM autogain FILES #####
+    {
+      echo "[[inputs.exec]]"
+      echo "commands = ["
+      echo "  \"bash /scripts/telegraf_input_autogain.sh\","
+      echo "]"
+      echo "interval = \"60s\""
+      echo "name_override = \"autogain\""
+      echo "data_format = \"influx\""
+    } > "$INPUT_AUTOGAIN_FILE"
+  fi
+fi
+
+# If INFLUXDB_SKIP_AIRCRAFT is NOT specified push aircraft data to influx
+if [[ -z "$INFLUXDB_SKIP_AIRCRAFT" ]]; then
+  ##### TELEGRAF CONFIG - INPUT FROM dump978 JSON #####
+  # Build telegraf config - input from dump978 JSON
+  {
+    echo "[[inputs.socket_listener]]"
+
+    # Run every fairly often as JSON comes out fast
+    echo "interval = \"1s\""
+
+    ## URL to listen on
+    echo "service_address = \"tcp://127.0.0.1:33979\""
+
+    ## Maximum number of concurrent connections.
+    ## Only applies to stream sockets (e.g. TCP).
+    ## 0 (default) is unlimited.
+    echo "max_connections = 2"
+
+    ## Read timeout.
+    ## Only applies to stream sockets (e.g. TCP).
+    ## 0 (default) is unlimited.
+    echo "read_timeout = \"0\""
+
+    ## Period between keep alive probes.
+    ## Only applies to TCP sockets.
+    ## 0 disables keep alive probes.
+    ## Defaults to the OS configuration.
+    echo "keep_alive_period = \"1m\""
+
+    ## Content encoding for message payloads, can be set to "gzip" to or
+    ## "identity" to apply no encoding.
+    echo "content_encoding = \"identity\""
+
+    ## Data format to consume.
+    ## Each data format has its own unique set of configuration options, read
+    ## more about them here:
+    ## https://github.com/influxdata/telegraf/blob/master/docs/DATA_FORMATS_INPUT.md
+    echo "data_format = \"json\""
+
+    echo "json_strict = true"
+
+    ## Tag keys is an array of keys that should be added as tags.
+    echo "tag_keys = ["
+    echo "  \"address_qualifier\","
+    echo "  \"address\","
+    echo "  \"airground_state\","
+    echo "  \"callsign\","
+    echo "  \"capability_codes_es_in\","
+    echo "  \"capability_codes_tcas_operational\","
+    echo "  \"capability_codes_uat_in\","
+    echo "  \"emergency\","
+    echo "  \"emitter_category\","
+    echo "  \"flightplan_id\","
+    echo "  \"nic_supplement\","
+    echo "  \"operational_modes_atc_services\","
+    echo "  \"operational_modes_ident_active\","
+    echo "  \"operational_modes_tcas_ra_active\","
+    echo "  \"sil_supplement\","
+    echo "  \"single_antenna\","
+    echo "  \"utc_coupled\","
+    echo "  \"vv_src\","
+    echo "]"
+
+    ## String fields is an array of keys that should be added as string fields.
+    echo "json_string_fields = ["
+    echo "  \"address_qualifier\","
+    echo "  \"address\","
+    echo "  \"airground_state\","
+    echo "  \"callsign\","
+    echo "  \"capability_codes_es_in\","
+    echo "  \"capability_codes_tcas_operational\","
+    echo "  \"capability_codes_uat_in\","
+    echo "  \"emergency\","
+    echo "  \"emitter_category\","
+    echo "  \"flightplan_id\","
+    echo "  \"nic_supplement\","
+    echo "  \"operational_modes_atc_services\","
+    echo "  \"operational_modes_ident_active\","
+    echo "  \"operational_modes_tcas_ra_active\","
+    echo "  \"sil_supplement\","
+    echo "  \"single_antenna\","
+    echo "  \"utc_coupled\","
+    echo "  \"vv_src\","
+    echo "]"
+
+    ## Name override
+    echo "name_override = \"aircraft\""
+
+    ## Time key is the key containing the time that should be used to create the
+    ## metric.
+    echo "json_time_key = \"metadata_received_at\""
+
+    ## Time format is the time layout that should be used to interpret the
+    ## json_time_key.  The time must be `unix`, `unix_ms` or a time in the
+    ## "reference time".
+    echo "json_time_format =\"unix\""
+
+  } > "$INPUT_JSON_CONFIG_FILE"
+fi
+
+mkdir -p /run/stats978
+touch /run/stats978/stats.json
+touch /run/stats978/polar_range.influx
